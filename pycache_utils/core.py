@@ -109,7 +109,7 @@ def cache(
                 if expire_in
                 else None
             )
-            store._store[key] = CacheItem(key, value, expire_at)
+            store[key] = CacheItem(key, value, expire_at)
             return value
 
     return wrapper
