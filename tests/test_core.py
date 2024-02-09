@@ -15,5 +15,7 @@ def test_cache():
         get_key=lambda min_value, max_value: f"{min_value}-{max_value}",
     )
 
-    assert cached_func(0, 100) == cached_func(0, 100)
-    assert cached_func(0, 100) != cached_func(0, 101)
+    item = cached_func(0, 100)
+    assert item == cached_func(0, 100)
+    cached_func.purge()
+    assert item != cached_func(0, 100)

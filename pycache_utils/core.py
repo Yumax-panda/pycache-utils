@@ -1,10 +1,22 @@
 from __future__ import annotations
 
-from typing import TypeVar, Generic, TYPE_CHECKING, ParamSpec, Callable
+from typing import (
+    TypeVar,
+    Generic,
+    TYPE_CHECKING,
+    ParamSpec,
+    Callable,
+    Protocol,
+)
 from datetime import datetime, timedelta
 
 T = TypeVar("T")
 P = ParamSpec("P")
+
+
+class CachedFunction(Protocol[P, T]):
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> T: ...
+    def purge(self) -> None: ...
 
 
 class CacheItem(Generic[T]):
@@ -94,7 +106,7 @@ def cache(
     get_key: Callable[P, str],
     tag: str,
     expire_in: int | None = None,
-) -> Callable[P, T]:
+) -> CachedFunction[P, T]:
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
         key = get_key(*args, **kwargs)
         store = CacheStore.get_store(tag)
@@ -109,5 +121,10 @@ def cache(
             )
             store[key] = CacheItem(key, value, expire_at)
             return value
+
+    def purge() -> None:
+        CacheStore.purge(tag)
+
+    wrapper.purge = purge
 
     return wrapper
