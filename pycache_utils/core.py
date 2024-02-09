@@ -4,9 +4,7 @@ from typing import TypeVar, Generic, TYPE_CHECKING, ParamSpec, Callable
 from datetime import datetime, timedelta
 
 T = TypeVar("T")
-K = TypeVar("K", bound=str)
 P = ParamSpec("P")
-GetKey = Callable[P, str]
 
 
 class CacheItem(Generic[T]):
