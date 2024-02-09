@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from typing import (
+    Any,
+    Coroutine,
     TypeVar,
     Generic,
     TYPE_CHECKING,
@@ -9,9 +11,11 @@ from typing import (
     Protocol,
 )
 from datetime import datetime, timedelta
+from inspect import iscoroutinefunction
 
 T = TypeVar("T")
 P = ParamSpec("P")
+MaybeCoroutineFunc = Callable[P, T | Coroutine[Any, Any, T]]
 
 
 class CachedFunction(Protocol[P, T]):
@@ -101,7 +105,7 @@ class CacheStore(Generic[T]):
         store._store[key] = CacheItem(key, value, expire_at)
 
 
-def cache(
+def _cache(
     func: Callable[P, T],
     get_key: Callable[P, str],
     tag: str,
@@ -128,3 +132,43 @@ def cache(
     wrapper.purge = purge
 
     return wrapper
+
+
+def _cache_async(
+    func: Callable[P, Coroutine[Any, Any, T]],
+    get_key: Callable[P, str],
+    tag: str,
+    expire_in: int | None = None,
+) -> CachedFunction[P, T]:
+    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+        key = get_key(*args, **kwargs)
+        store = CacheStore.get_store(tag)
+        try:
+            return store[key]
+        except KeyError:
+            value = await func(*args, **kwargs)
+            expire_at = (
+                datetime.now() + timedelta(seconds=expire_in)
+                if expire_in
+                else None
+            )
+            store[key] = CacheItem(key, value, expire_at)
+            return value
+
+    def purge() -> None:
+        CacheStore.purge(tag)
+
+    wrapper.purge = purge
+
+    return wrapper
+
+
+def cache(
+    func: MaybeCoroutineFunc[P, T],
+    tag: str,
+    get_key: Callable[P, str],
+    expire_in: int | None = None,
+) -> CachedFunction[P, T]:
+    if iscoroutinefunction(func):
+        return _cache_async(func, get_key, tag, expire_in)
+    return _cache(func, get_key, tag, expire_in)
