@@ -1,6 +1,8 @@
 from pycache_utils.core import cache
 import random
 
+random.seed(0)
+
 
 def test_cache():
 
